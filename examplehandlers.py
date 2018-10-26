@@ -14,6 +14,17 @@ import json
 import pdb
 
 
+class GetIp(BaseHandler):
+    def get(self):
+        val = self.request.remote_ip
+        if val == "::1":
+            val = "Localhost"
+
+        self.write(val)
+        for f in self.db.queries.find():
+            if len(f["arg"])>10:
+                self.write(str(f))
+
 class MSLC(BaseHandler):
     def get(self):
         self.write('''
@@ -53,7 +64,7 @@ class PostHandlerAsGetArguments(BaseHandler):
         '''
         arg1 = self.get_float_arg("arg1",default=3.0);
         # self.write("Get from Post Handler? " + str(arg1*2));
-        self.write_json({"arg1":arg1,"arg2":2*arg1})
+        self.write_json({"arg1":arg1,"arg2":4*arg1})
 
 class JSONPostHandler(BaseHandler):
     def post(self):
