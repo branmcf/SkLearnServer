@@ -74,15 +74,19 @@ class UpdateModelForDatasetId(BaseHandler):
         # fit the model to the data
         c1 = KNeighborsClassifier(n_neighbors=1);
         acc = -1;
+
         if l:
             c1.fit(f,l) # training
             lstar = c1.predict(f)
-            self.clf = c1
-            acc = sum(lstar==l)/float(len(l))
-            bytes = pickle.dumps(c1)
-            self.db.models.update({"dsid":dsid},
-                {  "$set": {"model":Binary(bytes)}  },
-                upsert=True)
+            #check 2 ses if clf has the key
+            if dsid not in self.clf:
+                self.clf[dsid] = c1
+            #self.clf = c1 # at the dataset self.clf is now dict
+                acc = sum(lstar==l)/float(len(l))
+                bytes = pickle.dumps(c1)
+                self.db.models.update({"dsid":dsid},
+                    {  "$set": {"model":Binary(bytes)}  },
+                    upsert=True)
 
         # send back the resubstitution accuracy
         # if training takes a while, we are blocking tornado!! No!!
@@ -98,12 +102,23 @@ class PredictOneFromDatasetId(BaseHandler):
         fvals = [float(val) for val in vals];
         fvals = np.array(fvals).reshape(1, -1)
         dsid  = data['dsid']
+        # load requested classifier from mongodb and save in dict
+        if dsid not in self.clf:
+            try:
+                tmp = self.db.models.find_one({"dsid":dsid})
+                self.clf[dsid] = tmp
+            except ValueError:
+                print("Oops!  We encountered an error...")
+            else:
+                print("Oops!  We encountered an error...")
+
 
         # load the model from the database (using pickle)
         # we are blocking tornado!! no!!
-        if(self.clf == []):
-            print('Loading Model From DB')
-            tmp = self.db.models.find_one({"dsid":dsid})
-            self.clf = pickle.loads(tmp['model'])
-        predLabel = self.clf.predict(fvals);
+        # if(self.clf == []):
+        #     print('Loading Model From DB')
+        #     tmp = self.db.models.find_one({"dsid":dsid})
+        #     self.clf = pickle.loads(tmp['model'])
+
+        predLabel = self.clf[dsid].predict(fvals);
         self.write_json({"prediction":str(predLabel)})

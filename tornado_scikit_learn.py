@@ -54,7 +54,7 @@ class Application(tornado.web.Application):
             print('Are you running a valid local-hosted instance of mongodb?')
             #raise inst
         
-        self.clf = [] # the classifier model (in-class assignment, you might need to change this line!)
+        self.clf = {} # the classifier model (in-class assignment, you might need to change this line!)
         # but depending on your implementation, you may not need to change it  ¯\_(ツ)_/¯
 
         settings = {'debug':True}
