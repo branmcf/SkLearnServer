@@ -55,7 +55,7 @@ class Application(tornado.web.Application):
             #raise inst
         
         self.clf = {} # the classifier model (in-class assignment, you might need to change this line!)
-        # but depending on your implementation, you may not need to change it  ¯\_(ツ)_/¯
+        # but depending on your implementation, you may not need to change it
 
         settings = {'debug':True}
         tornado.web.Application.__init__(self, handlers, **settings)
