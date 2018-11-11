@@ -15,6 +15,12 @@ import pickle
 from bson.binary import Binary
 import json
 import numpy as np
+import imageio
+import base64
+
+from pdb import set_trace as bp
+
+
 
 class PrintHandlers(BaseHandler):
     def get(self):
@@ -31,7 +37,14 @@ class UploadLabeledDatapointHandler(BaseHandler):
         data = json.loads(self.request.body.decode("utf-8"))
 
         vals = data['feature']
-        fvals = [float(val) for val in vals]
+        vals = vals[0]
+        fvals = imageio.imread(base64.b64decode(vals))
+        fvals = fvals.flatten()
+        fvals = fvals.tolist()
+        # with open('test.txt','w') as f:
+        #     for item in fvals:
+        #         print >> f, item
+        fvals = fvals[0:50]
         label = data['label']
         sess  = data['dsid']
 
@@ -62,19 +75,40 @@ class UpdateModelForDatasetId(BaseHandler):
         dsid = self.get_int_arg("dsid",default=0)
 
         # create feature vectors from database
-        f=[];
+        f=[]
         for a in self.db.labeledinstances.find({"dsid":dsid}): 
-            f.append([float(val) for val in a['feature']])
+            tmpList = np.array([],object)
+            for val in a['feature']:
+                tmpList = np.append(tmpList,float(val))
+                # tmpList.np.append(float(val))
 
+            # tmpList = np.array(tmpList).flatten().tolist()
+            # tmpList = list(tmpList)
+            f.append(tmpList)
+            # print f
+            # bp()
+            # for val in a['feature']:
+            #     for sublist in val:
+            #         for e in sublist:
+            #             tmpList.append(float(e))
+            # f.append(tmpList)
+                # val = list(val)
+                    # f.append(float(i))
+
+            # f.append([float(val) for val in a['feature']])
+        # print np.array(f).shape\
+        f = np.array(f)
+        shape = f.shape[0]
+        f = f.reshape(shape, 50)
+        # f = f.tolist()
         # create label vector from database
         l=[];
         for a in self.db.labeledinstances.find({"dsid":dsid}): 
             l.append(a['label'])
-
+        
         # fit the model to the data
         c1 = KNeighborsClassifier(n_neighbors=1);
         acc = -1;
-
         if l:
             c1.fit(f,l) # training
             lstar = c1.predict(f)
@@ -98,15 +132,20 @@ class PredictOneFromDatasetId(BaseHandler):
         '''
         data = json.loads(self.request.body.decode("utf-8"))    
 
-        vals = data['feature'];
-        fvals = [float(val) for val in vals];
-        fvals = np.array(fvals).reshape(1, -1)
+        vals = data['feature']
+        vals = vals[0]
+        fvals = imageio.imread(base64.b64decode(vals))
+        fvals = fvals.flatten()
+        fvals = fvals.tolist()
+        fvals = fvals[0:50]
+        # print fvals
+        # fvals = np.array(fvals).reshape(1, -1)
         dsid  = data['dsid']
         # load requested classifier from mongodb and save in dict
         if dsid not in self.clf:
             try:
                 tmp = self.db.models.find_one({"dsid":dsid})
-                self.clf[dsid] = tmp
+                self.clf[dsid] = pickle.loads(tmp['model'])
             except ValueError:
                 print("Oops!  We encountered an error...")
             else:
@@ -119,6 +158,6 @@ class PredictOneFromDatasetId(BaseHandler):
         #     print('Loading Model From DB')
         #     tmp = self.db.models.find_one({"dsid":dsid})
         #     self.clf = pickle.loads(tmp['model'])
-
-        predLabel = self.clf[dsid].predict(fvals);
+        predLabel = self.clf[dsid].predict([fvals]);
+        
         self.write_json({"prediction":str(predLabel)})
