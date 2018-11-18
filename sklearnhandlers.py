@@ -10,7 +10,7 @@ from tornado.options import define, options
 
 from basehandler import BaseHandler
 
-from sklearn.neighbors import KNeighborsClassifier
+from sklearn.neighbors import KNeighborsClassifier, RadiusNeighborsClassifier
 import pickle
 from bson.binary import Binary
 import json
@@ -41,10 +41,7 @@ class UploadLabeledDatapointHandler(BaseHandler):
         fvals = imageio.imread(base64.b64decode(vals))
         fvals = fvals.flatten()
         fvals = fvals.tolist()
-        # with open('test.txt','w') as f:
-        #     for item in fvals:
-        #         print >> f, item
-        fvals = fvals[0:50]
+        fvals = fvals[0:4000]
         label = data['label']
         sess  = data['dsid']
 
@@ -73,6 +70,8 @@ class UpdateModelForDatasetId(BaseHandler):
         '''Train a new model (or update) for given dataset ID
         '''
         dsid = self.get_int_arg("dsid",default=0)
+        modelId = self.get_int_arg("modelName",default=0)
+        modelId = str(modelId)
 
         # create feature vectors from database
         f=[]
@@ -85,21 +84,10 @@ class UpdateModelForDatasetId(BaseHandler):
             # tmpList = np.array(tmpList).flatten().tolist()
             # tmpList = list(tmpList)
             f.append(tmpList)
-            # print f
-            # bp()
-            # for val in a['feature']:
-            #     for sublist in val:
-            #         for e in sublist:
-            #             tmpList.append(float(e))
-            # f.append(tmpList)
-                # val = list(val)
-                    # f.append(float(i))
 
-            # f.append([float(val) for val in a['feature']])
-        # print np.array(f).shape\
         f = np.array(f)
         shape = f.shape[0]
-        f = f.reshape(shape, 50)
+        f = f.reshape(shape, 4000)
         # f = f.tolist()
         # create label vector from database
         l=[];
@@ -107,7 +95,13 @@ class UpdateModelForDatasetId(BaseHandler):
             l.append(a['label'])
         
         # fit the model to the data
-        c1 = KNeighborsClassifier(n_neighbors=1);
+        c1 = KNeighborsClassifier(n_neighbors=1)
+        if modelId == "0":
+            print 'UPDATE KNN'
+            c1 = KNeighborsClassifier(n_neighbors=1);
+        elif modelId == "1":
+            print 'UPDATE RN'
+            c1 = RadiusNeighborsClassifier(radius=100000000000000000000000.0)
         acc = -1;
         if l:
             c1.fit(f,l) # training
@@ -137,7 +131,7 @@ class PredictOneFromDatasetId(BaseHandler):
         fvals = imageio.imread(base64.b64decode(vals))
         fvals = fvals.flatten()
         fvals = fvals.tolist()
-        fvals = fvals[0:50]
+        fvals = fvals[0:4000]
         # print fvals
         # fvals = np.array(fvals).reshape(1, -1)
         dsid  = data['dsid']
@@ -146,6 +140,7 @@ class PredictOneFromDatasetId(BaseHandler):
             try:
                 tmp = self.db.models.find_one({"dsid":dsid})
                 self.clf[dsid] = pickle.loads(tmp['model'])
+                print self.clf[dsid]
             except ValueError:
                 print("Oops!  We encountered an error...")
             else:
@@ -159,5 +154,20 @@ class PredictOneFromDatasetId(BaseHandler):
         #     tmp = self.db.models.find_one({"dsid":dsid})
         #     self.clf = pickle.loads(tmp['model'])
         predLabel = self.clf[dsid].predict([fvals]);
-        
+        print "prediction: ", str(predLabel)
         self.write_json({"prediction":str(predLabel)})
+
+
+# OLD CODE
+            # print f
+            # bp()
+            # for val in a['feature']:
+            #     for sublist in val:
+            #         for e in sublist:
+            #             tmpList.append(float(e))
+            # f.append(tmpList)
+                # val = list(val)
+                    # f.append(float(i))
+
+            # f.append([float(val) for val in a['feature']])
+        # print np.array(f).shape\
