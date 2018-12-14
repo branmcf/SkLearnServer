@@ -42,7 +42,7 @@ class Application(tornado.web.Application):
                     ]
 
         self.handlers_string = str(handlers)
-
+        uri = 'mongodb://et_user:et_pass1@ds129484.mlab.com:29484/emojitone_db'
         try:
             self.client  = MongoClient(serverSelectionTimeoutMS=50) # local host, default port
             print(self.client.server_info()) # force pymongo to look for possible running servers, error if none running
